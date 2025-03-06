@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Медосмотры летчиков</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f7fa;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        .button:hover {
+            background-color: #2980b9;
+        }
+        .search-form {
+            margin: 20px 0;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        .search-form input {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            width: 300px;
+            font-size: 16px;
+        }
+        .search-form button {
+            padding: 10px 20px;
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .search-form button:hover {
+            background-color: #27ae60;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background-color: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #34495e;
+            color: white;
+        }
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        .expired {
+            background-color: #e74c3c;
+            color: white;
+        }
+        .near {
+            background-color: #e67e22;
+            color: white;
+        }
+        .message {
+            color: #27ae60;
+            text-align: center;
+            margin: 10px 0;
+        }
+        a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        img {
+            max-width: 50px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Учет медосмотров летчиков</h1>
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                    <p class="message">{{ message }}</p>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        <a href="{{ url_for('add_person') }}" class="button">Добавить летчика</a>
+
+        <form class="search-form" method="GET">
+            <input type="text" name="search" placeholder="Поиск по ФИО" value="{{ search_query }}">
+            <button type="submit">Найти</button>
+        </form>
+
+        <table>
+            <tr>
+                <th><a href="?sort=number" style="color: white;">№</a></th>
+                <th><a href="?sort=fio" style="color: white;">ФИО</a></th>
+                <th>Дата рождения</th>
+                <th>Последний осмотр</th>
+                <th>Тип</th>
+                <th>Статус</th>
+                <th>Болезнь</th>
+                <th>Риск</th>
+                <th>Фото</th>
+                <th><a href="?sort=expiry" style="color: white;">Истекает</a></th>
+                <th>Действия</th>
+            </tr>
+            {% for person in people %}
+            {% set last_check = person.checks[-1] if person.checks else None %}
+            <tr class="{% if last_check and last_check.get_expiry_date() < current_date %}expired{% elif last_check and (last_check.get_expiry_date() - current_date).days <= 30 %}near{% endif %}">
+                <td>{{ person.number }}</td>
+                <td>{{ person.fio }}</td>
+                <td>{{ person.birth_date.strftime('%Y-%m-%d') if person.birth_date else '-' }}</td>
+                <td>{{ last_check.check_date.strftime('%Y-%m-%d') if last_check else '-' }}</td>
+                <td>{{ {'3m': '3 месяца', '1y': '1 год', 'vlek': 'ВЛЭК'}[last_check.check_type] if last_check else '-' }}</td>
+                <td>{{ last_check.status if last_check else '-' }}</td>
+                <td>{{ last_check.disease if last_check else '-' }}</td>
+                <td>{{ last_check.risk if last_check else '-' }}</td>
+                <td>
+                    {% if last_check and last_check.photo_path %}
+                        <img src="{{ url_for('uploaded_file', filename=os.path.basename(last_check.photo_path)) }}" alt="Фото">
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td>{{ last_check.get_expiry_date().strftime('%Y-%m-%d') if last_check else '-' }}</td>
+                <td>
+                    <a href="{{ url_for('edit_person', person_id=person.id) }}">Редактировать</a> |
+                    <a href="{{ url_for('delete_person', person_id=person.id) }}" onclick="return confirm('Удалить?')">Удалить</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+</body>
+</html>

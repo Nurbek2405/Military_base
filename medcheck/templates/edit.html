@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Карточка летчика</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f7fa;
+            margin: 0;
+            padding: 20px;
+        }
+        h1, h2 {
+            color: #2c3e50;
+            text-align: center;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        form {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        label {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        input, select, textarea {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            flex: 1;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: white;
+        }
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #34495e;
+            color: white;
+        }
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        .message {
+            color: #27ae60;
+            text-align: center;
+            margin: 10px 0;
+        }
+        a {
+            color: #3498db;
+            text-decoration: none;
+            display: block;
+            text-align: center;
+            margin-top: 10px;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        img {
+            max-width: 50px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Карточка: {{ person.fio }} (№{{ person.number }})</h1>
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                    <p class="message">{{ message }}</p>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        <p>Дата рождения: {{ person.birth_date.strftime('%Y-%m-%d') if person.birth_date else 'Не указана' }}</p>
+
+        <h2>Добавить осмотр</h2>
+        <form method="POST" enctype="multipart/form-data">
+            <label for="check_date">Дата осмотра:</label>
+            <input type="date" id="check_date" name="check_date" required>
+
+            <label for="check_type">Тип осмотра:</label>
+            <select id="check_type" name="check_type">
+                <option value="3m">3 месяца</option>
+                <option value="1y">1 год</option>
+                <option value="vlek">ВЛЭК</option>
+            </select>
+
+            <label for="status">Статус:</label>
+            <select id="status" name="status">
+                <option value="разрешен">Разрешен</option>
+                <option value="не разрешен">Не разрешен</option>
+            </select>
+
+            <label for="disease">Описание болезни:</label>
+            <textarea id="disease" name="disease" placeholder="Описание болезни"></textarea>
+
+            <label for="risk">Риск:</label>
+            <input type="text" id="risk" name="risk" placeholder="Риск">
+
+            <label for="photo">Фото:</label>
+            <input type="file" id="photo" name="photo" accept="image/*">
+
+            <button type="submit" name="add_check">Добавить</button>
+        </form>
+
+        <h2>История осмотров</h2>
+        <table>
+            <tr>
+                <th>Дата</th>
+                <th>Тип</th>
+                <th>Статус</th>
+                <th>Болезнь</th>
+                <th>Риск</th>
+                <th>Фото</th>
+                <th>Истекает</th>
+            </tr>
+            {% for check in person.checks %}
+            <tr>
+                <td>{{ check.check_date.strftime('%Y-%m-%d') }}</td>
+                <td>{{ {'3m': '3 месяца', '1y': '1 год', 'vlek': 'ВЛЭК'}[check.check_type] }}</td>
+                <td>{{ check.status }}</td>
+                <td>{{ check.disease or '-' }}</td>
+                <td>{{ check.risk or '-' }}</td>
+                <td>
+                    {% if check.photo_path %}
+                        <img src="{{ url_for('uploaded_file', filename=os.path.basename(check.photo_path)) }}" alt="Фото">
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td>{{ check.get_expiry_date().strftime('%Y-%m-%d') }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        <a href="{{ url_for('index') }}">Назад</a>
+    </div>
+</body>
+</html>

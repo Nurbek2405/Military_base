@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Добавить летчика</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f7fa;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #2c3e50;
+        }
+        input, select, textarea {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            padding: 10px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        a {
+            color: #3498db;
+            text-decoration: none;
+            text-align: center;
+            display: block;
+            margin-top: 10px;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Добавить летчика</h1>
+        <form method="POST" enctype="multipart/form-data">
+            <label for="fio">ФИО:</label>
+            <input type="text" id="fio" name="fio" placeholder="Введите ФИО" required>
+
+            <label for="birth_date">Дата рождения:</label>
+            <input type="date" id="birth_date" name="birth_date" placeholder="Выберите дату рождения">
+
+            <label for="check_date">Дата осмотра:</label>
+            <input type="date" id="check_date" name="check_date" required placeholder="Выберите дату осмотра">
+
+            <label for="check_type">Тип осмотра:</label>
+            <select id="check_type" name="check_type">
+                <option value="3m">3 месяца</option>
+                <option value="1y">1 год</option>
+                <option value="vlek">ВЛЭК</option>
+            </select>
+
+            <label for="status">Статус:</label>
+            <select id="status" name="status">
+                <option value="разрешен">Разрешен</option>
+                <option value="не разрешен">Не разрешен</option>
+            </select>
+
+            <label for="disease">Описание болезни:</label>
+            <textarea id="disease" name="disease" placeholder="Опишите болезни (если есть)"></textarea>
+
+            <label for="risk">Риск:</label>
+            <input type="text" id="risk" name="risk" placeholder="Укажите риск (если есть)">
+
+            <label for="photo">Фото:</label>
+            <input type="file" id="photo" name="photo" accept="image/*">
+
+            <button type="submit">Добавить</button>
+        </form>
+        <a href="{{ url_for('index') }}">Назад</a>
+    </div>
+</body>
+</html>
