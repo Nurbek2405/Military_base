@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Добавить летчика</title>
+    <title>Добавить авиационный персонал</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -64,7 +64,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>Добавить летчика</h1>
+        <h1>Добавить авиационный персонал</h1>
         <form method="POST" enctype="multipart/form-data">
             <label for="fio">ФИО:</label>
             <input type="text" id="fio" name="fio" placeholder="Введите ФИО" required>
@@ -77,22 +77,19 @@
 
             <label for="check_type">Тип осмотра:</label>
             <select id="check_type" name="check_type">
-                <option value="3m">3 месяца</option>
-                <option value="1y">1 год</option>
                 <option value="vlek">ВЛЭК</option>
+                <option value="kmo">КМО</option>
+                <option value="umo">УМО</option>
             </select>
 
             <label for="status">Статус:</label>
             <select id="status" name="status">
                 <option value="разрешен">Разрешен</option>
-                <option value="не разрешен">Не разрешен</option>
+                <option value="запрещен вылет">Запрещен вылет</option>
             </select>
 
-            <label for="disease">Описание болезни:</label>
-            <textarea id="disease" name="disease" placeholder="Опишите болезни (если есть)"></textarea>
-
-            <label for="risk">Риск:</label>
-            <input type="text" id="risk" name="risk" placeholder="Укажите риск (если есть)">
+            <label for="diagnosis">Диагноз:</label>
+            <textarea id="diagnosis" name="diagnosis" placeholder="Опишите диагноз (если есть)"></textarea>
 
             <label for="photo">Фото:</label>
             <input type="file" id="photo" name="photo" accept="image/*">

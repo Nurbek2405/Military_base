@@ -1,10 +1,10 @@
-import os
 from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta
+import os
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///default.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://meduser:yourpassword@localhost:6432/medcheck'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = 'your-secret-key'
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -14,6 +14,7 @@ db = SQLAlchemy(app)
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
     os.makedirs(app.config['UPLOAD_FOLDER'])
 
+
 class Person(db.Model):
     __tablename__ = 'persons'
     id = db.Column(db.Integer, primary_key=True)
@@ -22,23 +23,43 @@ class Person(db.Model):
     birth_date = db.Column(db.DateTime, nullable=True)
     checks = db.relationship('MedicalCheck', backref='person', lazy=True)
 
+
 class MedicalCheck(db.Model):
     __tablename__ = 'medical_checks'
     id = db.Column(db.Integer, primary_key=True)
     person_id = db.Column(db.Integer, db.ForeignKey('persons.id'), nullable=False)
     check_date = db.Column(db.DateTime, nullable=False)
-    check_type = db.Column(db.String(10), nullable=False)
-    status = db.Column(db.String(20), nullable=True)
-    disease = db.Column(db.String(200), nullable=True)
-    risk = db.Column(db.String(100), nullable=True)
+    check_type = db.Column(db.String(10), nullable=False)  # "vlek", "kmo", "umo"
+    status = db.Column(db.String(20), nullable=True)  # "разрешен" или "запрещен вылет"
+    diagnosis = db.Column(db.String(200), nullable=True)
     photo_path = db.Column(db.String(200), nullable=True)
 
     def get_expiry_date(self):
-        if self.check_type == "3m":
-            return self.check_date + timedelta(days=90)
-        elif self.check_type in ["1y", "vlek"]:
-            return self.check_date + timedelta(days=365)
+        if self.check_type in ["kmo", "umo"]:
+            return self.check_date + timedelta(days=90)  # 3 месяца для КМО и УМО
+        elif self.check_type == "vlek":
+            return self.check_date + timedelta(days=365)  # 1 год для ВЛЭК
         return self.check_date
+
+    def get_next_check(self):
+        checks = MedicalCheck.query.filter_by(person_id=self.person_id).order_by(MedicalCheck.check_date.desc()).limit(
+            4).all()
+        if not checks:
+            return "vlek", self.check_date  # Первый осмотр — ВЛЭК
+        last_check = checks[0]
+
+        # Цикл: ВЛЭК → КМО → УМО → КМО → ВЛЭК
+        if len(checks) >= 4 and checks[0].check_type == "kmo" and checks[1].check_type == "umo" and checks[
+            2].check_type == "kmo" and checks[3].check_type == "vlek":
+            return "vlek", last_check.check_date + timedelta(days=90)
+        elif last_check.check_type == "vlek":
+            return "kmo", last_check.check_date + timedelta(days=90)
+        elif last_check.check_type == "kmo" and (len(checks) == 1 or checks[1].check_type == "vlek"):
+            return "umo", last_check.check_date + timedelta(days=90)
+        elif last_check.check_type == "umo":
+            return "kmo", last_check.check_date + timedelta(days=90)
+        return "kmo", last_check.check_date + timedelta(days=90)
+
 
 with app.app_context():
     db.create_all()
@@ -47,6 +68,21 @@ with app.app_context():
     else:
         max_number = 0
     Person.next_number = max_number + 1
+
+
+def check_sequence(person):
+    checks = sorted(person.checks, key=lambda c: c.check_date)
+    if not checks:
+        return False  # Нет осмотров — не прошел
+    expected_sequence = ["vlek", "kmo", "umo", "kmo"]
+    current_date = datetime.now()
+
+    for i, check in enumerate(checks):
+        expected_type = expected_sequence[i % 4]
+        if check.check_type != expected_type or check.get_expiry_date() < current_date:
+            return False  # Неправильный тип или просрочен
+    return True
+
 
 @app.route('/', methods=['GET'])
 def index():
@@ -66,7 +102,9 @@ def index():
         people = sorted(people, key=lambda p: p.number)
 
     current_date = datetime.now()
-    return render_template('index.html', people=people, current_date=current_date, search_query=search_query)
+    return render_template('index.html', people=people, current_date=current_date, search_query=search_query,
+                           check_sequence=check_sequence)
+
 
 @app.route('/add', methods=['GET', 'POST'])
 def add_person():
@@ -76,8 +114,7 @@ def add_person():
         check_date = datetime.strptime(request.form['check_date'], '%Y-%m-%d')
         check_type = request.form['check_type']
         status = request.form['status']
-        disease = request.form['disease']
-        risk = request.form['risk']
+        diagnosis = request.form['diagnosis']
         photo = request.files.get('photo')
 
         photo_path = None
@@ -92,12 +129,13 @@ def add_person():
         db.session.commit()
 
         new_check = MedicalCheck(person_id=person.id, check_date=check_date, check_type=check_type,
-                                status=status, disease=disease, risk=risk, photo_path=photo_path)
+                                 status=status, diagnosis=diagnosis, photo_path=photo_path)
         db.session.add(new_check)
         db.session.commit()
-        flash('Летчик добавлен')
+        flash('Персонал добавлен')
         return redirect(url_for('index'))
     return render_template('add.html')
+
 
 @app.route('/edit/<int:person_id>', methods=['GET', 'POST'])
 def edit_person(person_id):
@@ -107,8 +145,7 @@ def edit_person(person_id):
             check_date = datetime.strptime(request.form['check_date'], '%Y-%m-%d')
             check_type = request.form['check_type']
             status = request.form['status']
-            disease = request.form['disease']
-            risk = request.form['risk']
+            diagnosis = request.form['diagnosis']
             photo = request.files.get('photo')
 
             photo_path = None
@@ -118,12 +155,16 @@ def edit_person(person_id):
                 photo.save(photo_path)
 
             new_check = MedicalCheck(person_id=person.id, check_date=check_date, check_type=check_type,
-                                    status=status, disease=disease, risk=risk, photo_path=photo_path)
+                                     status=status, diagnosis=diagnosis, photo_path=photo_path)
             db.session.add(new_check)
             db.session.commit()
             flash('Осмотр добавлен')
         return redirect(url_for('edit_person', person_id=person_id))
-    return render_template('edit.html', person=person)
+
+    last_check = MedicalCheck.query.filter_by(person_id=person_id).order_by(MedicalCheck.check_date.desc()).first()
+    next_check_type, next_check_date = ("vlek", datetime.now()) if not last_check else last_check.get_next_check()
+    return render_template('edit.html', person=person, next_check_type=next_check_type, next_check_date=next_check_date)
+
 
 @app.route('/delete/<int:person_id>')
 def delete_person(person_id):
@@ -134,12 +175,14 @@ def delete_person(person_id):
         db.session.delete(check)
     db.session.delete(person)
     db.session.commit()
-    flash('Летчик удален')
+    flash('Персонал удален')
     return redirect(url_for('index'))
+
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=True)
+    app.run(host='0.0.0.0', debug=True)

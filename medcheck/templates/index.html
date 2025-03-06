@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Медосмотры летчиков</title>
+    <title>Медосмотры авиационного персонала</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -74,13 +74,13 @@
         tr:hover {
             background-color: #f5f5f5;
         }
-        .expired {
+        .not-passed {
             background-color: #e74c3c;
             color: white;
         }
-        .near {
-            background-color: #e67e22;
-            color: white;
+        .expiring-soon {
+            background-color: #f1c40f;
+            color: black;
         }
         .message {
             color: #27ae60;
@@ -102,7 +102,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>Учет медосмотров летчиков</h1>
+        <h1>Учет медосмотров авиационного персонала</h1>
         {% with messages = get_flashed_messages() %}
             {% if messages %}
                 {% for message in messages %}
@@ -110,7 +110,7 @@
                 {% endfor %}
             {% endif %}
         {% endwith %}
-        <a href="{{ url_for('add_person') }}" class="button">Добавить летчика</a>
+        <a href="{{ url_for('add_person') }}" class="button">Добавить авиационный персонал</a>
 
         <form class="search-form" method="GET">
             <input type="text" name="search" placeholder="Поиск по ФИО" value="{{ search_query }}">
@@ -125,23 +125,21 @@
                 <th>Последний осмотр</th>
                 <th>Тип</th>
                 <th>Статус</th>
-                <th>Болезнь</th>
-                <th>Риск</th>
+                <th>Диагноз</th>
                 <th>Фото</th>
                 <th><a href="?sort=expiry" style="color: white;">Истекает</a></th>
                 <th>Действия</th>
             </tr>
             {% for person in people %}
             {% set last_check = person.checks[-1] if person.checks else None %}
-            <tr class="{% if last_check and last_check.get_expiry_date() < current_date %}expired{% elif last_check and (last_check.get_expiry_date() - current_date).days <= 30 %}near{% endif %}">
+            <tr class="{% if not check_sequence(person) %}not-passed{% elif last_check and (last_check.get_expiry_date() - current_date).days <= 14 %}expiring-soon{% endif %}">
                 <td>{{ person.number }}</td>
                 <td>{{ person.fio }}</td>
                 <td>{{ person.birth_date.strftime('%Y-%m-%d') if person.birth_date else '-' }}</td>
                 <td>{{ last_check.check_date.strftime('%Y-%m-%d') if last_check else '-' }}</td>
-                <td>{{ {'3m': '3 месяца', '1y': '1 год', 'vlek': 'ВЛЭК'}[last_check.check_type] if last_check else '-' }}</td>
+                <td>{{ {'vlek': 'ВЛЭК', 'kmo': 'КМО', 'umo': 'УМО'}[last_check.check_type] if last_check else '-' }}</td>
                 <td>{{ last_check.status if last_check else '-' }}</td>
-                <td>{{ last_check.disease if last_check else '-' }}</td>
-                <td>{{ last_check.risk if last_check else '-' }}</td>
+                <td>{{ last_check.diagnosis if last_check else '-' }}</td>
                 <td>
                     {% if last_check and last_check.photo_path %}
                         <img src="{{ url_for('uploaded_file', filename=os.path.basename(last_check.photo_path)) }}" alt="Фото">
